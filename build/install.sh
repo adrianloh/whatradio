@@ -6,6 +6,9 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+# Install ffmpeg
+sudo apt-get install -y ffmpeg
+
 # Content to be added to /boot/config.txt
 boot_config_content="
 # Enable ST7789 display
