@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Check if the script is running in /home/pi/whatradio
+if [ "$(pwd)" != "/home/pi/whatradio" ]; then
+    echo "This script must be run from /home/pi/whatradio directory" 1>&2
+    exit 1
+fi
+
+chmod +x whatradio
+
 # Check for root permission
 if [ "$(id -u)" != "0" ]; then
    echo "This script must be run as root" 1>&2
