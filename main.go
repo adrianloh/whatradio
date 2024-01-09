@@ -63,10 +63,11 @@ func main() {
 
 	// To enable Spotify, create an empty file called `spotify_token.txt`
 	// in the same directory as the binary.
+	OK_HTML = filepath.Join(HOME, OK_HTML)
 	SPOTIFY_TOKEN_FILE = filepath.Join(HOME, SPOTIFY_TOKEN_FILE)
 	b, err := os.ReadFile(SPOTIFY_TOKEN_FILE)
 	if err == nil {
-		if len(b) == 0 {
+		if len(b) <= 4 {
 			log.Printf("[SPOTIFY] Enabled. Authenticating...")
 			spotifyFunc = InitSpotifyClient
 		} else {

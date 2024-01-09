@@ -3,15 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
 
 var SPOTIFY_TOKEN_FILE = "spotify_token.txt"
+var OK_HTML = "ok.html"
 
 const (
 	redirectURI         = "http://raspberrypi.local:54541/callback"
@@ -20,9 +21,10 @@ const (
 )
 
 var (
-	auth  = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserLibraryModify)
-	ch    = make(chan *spotify.Client)
-	state = "abc123"
+	auth        = spotify.NewAuthenticator(redirectURI, spotify.ScopeUserLibraryModify)
+	spotifyOK   = make(chan *spotify.Client)
+	spotifyFail = make(chan error)
+	state       = "abc123"
 )
 
 type SpotifyClient struct {
@@ -63,37 +65,48 @@ func InitSpotifyClient(display *Display) (*SpotifyClient, error) {
 
 	url := auth.AuthURL(state)
 	display.ShowQR(url, 0)
-	fmt.Println("fmtin to Spotify:\n", url)
+	fmt.Println("login to Spotify:\n", url)
 
-	client := <-ch
-
-	spotifyClient.client = client
-
+	select {
+	case <-spotifyFail:
+		return spotifyClient, fmt.Errorf("failed to authenticate with Spotify")
+	case client := <-spotifyOK:
+		spotifyClient.client = client
+	}
 	return spotifyClient, nil
 
 }
 
 func completeAuth(w http.ResponseWriter, r *http.Request) {
+
+	bytes, _ := os.ReadFile("ok.html")
+	htmlOK := string(bytes)
+	htmlNoOK := strings.Replace(htmlOK, "😃", "😪", 1)
+
 	token, err := auth.Token(state, r)
 	if err != nil {
-		http.Error(w, "Couldn't get token", http.StatusForbidden)
-		log.Fatalf("couldn't get token: %v", err)
+		fmt.Fprintf(w, htmlNoOK)
+		spotifyFail <- fmt.Errorf("couldn't get token: %v\n", err)
+		return
 	}
 	if st := r.FormValue("state"); st != state {
-		http.NotFound(w, r)
-		log.Fatalf("state mismatch: %v != %v", st, state)
+		fmt.Fprintf(w, htmlNoOK)
+		spotifyFail <- fmt.Errorf("state mismatch: %v != %v\n", st, state)
+		return
 	}
-
-	client := auth.NewClient(token)
-	fmt.Fprintf(w, "fmtin Completed!")
 
 	// Save the refresh token to a file
 	err = os.WriteFile(SPOTIFY_TOKEN_FILE, []byte(token.RefreshToken), 0600)
 	if err != nil {
-		log.Fatalf("failed to save refresh token: %v", err)
+		fmt.Fprintf(w, htmlNoOK)
+		spotifyFail <- fmt.Errorf("failed to save refresh token: %v\n", err)
+		return
 	}
 
-	ch <- &client
+	client := auth.NewClient(token)
+	fmt.Fprintf(w, htmlOK)
+	spotifyOK <- &client
+
 }
 
 func refreshToken(refreshToken string) (*oauth2.Token, error) {
