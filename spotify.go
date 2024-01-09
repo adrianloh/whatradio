@@ -37,7 +37,7 @@ func (s *SpotifyClient) AddTrackToLibrary(trackID string) error {
 	return nil
 }
 
-func NewSpotifyClient(display *Display) (*SpotifyClient, error) {
+func RefreshSpotifyClient(display *Display) (*SpotifyClient, error) {
 	spotifyClient := &SpotifyClient{}
 	auth.SetAuthInfo(spotifyClientId, spotifyClientSecret)
 	refreshTokenBytes, _ := os.ReadFile(SPOTIFY_TOKEN_FILE)
@@ -51,25 +51,11 @@ func NewSpotifyClient(display *Display) (*SpotifyClient, error) {
 	return spotifyClient, nil
 }
 
-func _NewSpotifyClient(display *Display) *SpotifyClient {
+func InitSpotifyClient(display *Display) (*SpotifyClient, error) {
 
 	spotifyClient := &SpotifyClient{}
 
 	auth.SetAuthInfo(spotifyClientId, spotifyClientSecret)
-	// Try to read the refresh token from the file
-	refreshTokenBytes, err := os.ReadFile(SPOTIFY_TOKEN_FILE)
-	if err == nil && len(refreshTokenBytes) > 0 {
-		spotifyClient.refreshToken = string(refreshTokenBytes)
-		// Refresh token is available, use it to get a new access token
-		token, err := refreshToken(spotifyClient.refreshToken)
-		if err != nil {
-			fmt.Printf("Error refreshing token: %v\n", err)
-		} else {
-			client := auth.NewClient(token)
-			spotifyClient.client = &client
-			return spotifyClient
-		}
-	}
 
 	// Start HTTP server and handle authentication if refresh token is not available
 	http.HandleFunc("/callback", completeAuth)
@@ -83,7 +69,7 @@ func _NewSpotifyClient(display *Display) *SpotifyClient {
 
 	spotifyClient.client = client
 
-	return spotifyClient
+	return spotifyClient, nil
 
 }
 

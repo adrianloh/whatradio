@@ -59,14 +59,21 @@ func main() {
 	}
 
 	var spotifyClient *SpotifyClient
+	var spotifyFunc func(*Display) (*SpotifyClient, error)
 
 	// To enable Spotify, create an empty file called `spotify_token.txt`
 	// in the same directory as the binary.
 	SPOTIFY_TOKEN_FILE = filepath.Join(HOME, SPOTIFY_TOKEN_FILE)
-	_, err = os.ReadFile(SPOTIFY_TOKEN_FILE)
+	b, err := os.ReadFile(SPOTIFY_TOKEN_FILE)
 	if err == nil {
-		log.Printf("[SPOTIFY] Token file found, enabling Spotify")
-		spotifyClient, err = NewSpotifyClient(display)
+		if len(b) == 0 {
+			log.Printf("[SPOTIFY] Enabled. Authenticating...")
+			spotifyFunc = InitSpotifyClient
+		} else {
+			log.Printf("[SPOTIFY] Enabled. Reusing token.")
+			spotifyFunc = RefreshSpotifyClient
+		}
+		spotifyClient, err = spotifyFunc(display)
 		if err != nil {
 			log.Printf("[SPOTIFY] Failed to init Spotify client: %s", err)
 			os.Exit(1)
