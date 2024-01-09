@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,11 +62,24 @@ func main() {
 	var spotifyClient *SpotifyClient
 	var spotifyFunc func(*Display) (*SpotifyClient, error)
 
+	// To enable Audd.io song identification, place your api token
+	// in a file called `auddio_token.txt`
+	b, err := os.ReadFile(AUDDIO_TOKEN_FILE)
+	if err == nil && len(b) > 4 {
+		IDENTIFY_ENABLED = true
+		AUDDIO_API_KEY = string(b)
+		log.Printf("[IDENTIFY] Enabled: %s\n", AUDDIO_API_KEY)
+	}
+
+	_, err = os.ReadFile(OK_HTML)
+	if err != nil {
+		log.Printf("[SPOTIFY] `ok.html` missing.")
+		os.Exit(1)
+	}
+
 	// To enable Spotify, create an empty file called `spotify_token.txt`
 	// in the same directory as the binary.
-	OK_HTML = filepath.Join(HOME, OK_HTML)
-	SPOTIFY_TOKEN_FILE = filepath.Join(HOME, SPOTIFY_TOKEN_FILE)
-	b, err := os.ReadFile(SPOTIFY_TOKEN_FILE)
+	b, err = os.ReadFile(SPOTIFY_TOKEN_FILE)
 	if err == nil {
 		if len(b) <= 4 {
 			log.Printf("[SPOTIFY] Enabled. Authenticating...")
@@ -165,6 +179,9 @@ func main() {
 				favorite_stations = append(favorite_stations, currentStation.Station)
 				log.Printf("[FAVORITES] [%d] Added: %s", len(favorite_stations), currentStation.Station.Name)
 			case <-identifySong:
+				if !IDENTIFY_ENABLED {
+					continue
+				}
 				go RecordAndIdentifySong(audioSink, identifySongResult)
 				display.ShowStatus(IDENTIFY)
 			}
@@ -187,9 +204,11 @@ func main() {
 				}
 				isPlaying = false
 			case track := <-identifySongResult:
-				if track.OK && track.SpotifyID != "" {
-					if spotifyClient == nil {
-						display.ShowQR(track.SpotifyURL, 30)
+				if track.OK {
+					if spotifyClient == nil || track.SpotifyID != "" {
+						escaped := url.QueryEscape(track.Title + " " + track.Artist)
+						yt_seatrch_url := YOUTUBE_SEARCH + escaped
+						display.ShowQR(yt_seatrch_url, 60)
 						continue
 					}
 					err := spotifyClient.AddTrackToLibrary(track.SpotifyID)

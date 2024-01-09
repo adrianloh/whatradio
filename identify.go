@@ -10,9 +10,15 @@ import (
 	"os"
 )
 
+var (
+	IDENTIFY_ENABLED = false
+	AUDDIO_API_KEY   = ""
+)
+
 const (
-	AUDDIO_API_KEY = "5f3d2d2c59c6eef1e3f558a82457ca75"
-	AUDDIO_GATEWAY = "https://api.audd.io/"
+	AUDDIO_TOKEN_FILE = "auddio_token.txt"
+	AUDDIO_GATEWAY    = "https://api.audd.io/"
+	YOUTUBE_SEARCH    = "https://www.youtube.com/results?search_query="
 )
 
 type ApiResponse struct {

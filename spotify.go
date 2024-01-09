@@ -11,10 +11,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var SPOTIFY_TOKEN_FILE = "spotify_token.txt"
-var OK_HTML = "ok.html"
-
 const (
+	SPOTIFY_TOKEN_FILE  = "spotify_token.txt"
+	OK_HTML             = "ok.html"
 	redirectURI         = "http://raspberrypi.local:54541/callback"
 	spotifyClientId     = "d242f9bcdc2f474abcbd667eae3ff7e9"
 	spotifyClientSecret = "a8dd1bb931f042e3a0de85489e3e428c"
