@@ -1,0 +1,34 @@
+# To ignore a language, add `#` at the beginning of the line, or remove it entirely
+english
+german
+spanish
+french
+chinese
+italian
+greek
+russian
+polish
+portuguese
+dutch
+romanian
+brazilian portuguese
+serbian
+arabic
+american english
+hungarian
+turkish
+croatian
+ukrainian
+japanese
+czech
+hindi
+luganda
+swedish
+catalan
+indonesian
+slovak
+bosnian
+danish
+filipino
+finnish
+bulgarian

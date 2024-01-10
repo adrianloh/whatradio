@@ -37,6 +37,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Required by stations.go
+	err := get_languages_from_file()
+	if err != nil {
+		log.Printf("[STATIONS] Failed to get languages: %s", err)
+		os.Exit(1)
+	}
+
 	// GPIO
 	if err := rpio.Open(); err != nil {
 		log.Printf("[GPIO] Failed to open GPIO: %s", err)

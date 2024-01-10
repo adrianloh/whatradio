@@ -3,14 +3,19 @@ package main
 // API docs: https://de1.api.radio-browser.info
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
+
+const LANGUAGES_FILE = "languages.txt"
 
 var (
 	BBC_ONE = Station{"BBC One",
@@ -18,6 +23,13 @@ var (
 		"http://as-hls-ww-live.akamaized.net/pool_904/live/ww/bbc_radio_one/bbc_radio_one.isml/bbc_radio_one-audio%3d96000.norewind.m3u8",
 		"pop",
 	}
+
+	STATION_SORT_FIELDS = []string{"clickcount", "votes", "clicktrend"}
+	RADIO_SERVERS       = []string{`de1.api.radio-browser.info`, `at1.api.radio-browser.info`, `nl1.api.radio-browser.info`}
+	LANGUAGES           = []string{}
+
+	last_search_time             = time.Now()
+	last_stations_search_results = []Station{}
 )
 
 // https://de1.api.radio-browser.info/json/stations/byuuid/0af24a33-1631-4c23-b09a-c1413d2c4fb0
@@ -29,31 +41,32 @@ type Station struct {
 	Tags string `json:"tags"`
 }
 
-var STATION_SORT_FIELDS = []string{"clickcount", "votes", "clicktrend"}
-var RADIO_SERVERS = []string{`de1.api.radio-browser.info`, `at1.api.radio-browser.info`, `nl1.api.radio-browser.info`}
-var LANGUAGES = []string{
-	"japanese",
-	"italian",
-	"cantonese",
-	"spanish",
-	"hindi",
-	"chinese",
-	"german",
-	"french",
-	"swedish",
-	"japanese",
-	"italian",
-	"russian",
-	"english",
-	"german",
-	"french",
-	"swedish",
-}
+func get_languages_from_file() error {
+	file, err := os.Open(LANGUAGES_FILE)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-var (
-	last_search_time             = time.Now()
-	last_stations_search_results = []Station{}
-)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "#") {
+			LANGUAGES = append(LANGUAGES, line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if len(LANGUAGES) == 0 {
+		return errors.New("No languages found. Check `languages.txt``")
+	}
+
+	return nil
+}
 
 func get_radio_servers() error {
 	service := "api"
