@@ -85,15 +85,6 @@ func get_radio_servers() error {
 
 // https://de1.api.radio-browser.info/#Advanced_station_search
 // https://jsonviewer.stack.hu/#http://de1.api.radio-browser.info/json/stations/search?limit=3&order=clickcount&language=english&reverse=true
-func parse_query_url() string {
-	s := fmt.Sprintf("https://%s/json/stations/search?", PickOne(RADIO_SERVERS))
-	s += fmt.Sprintf("limit=%d&", 50)
-	s += fmt.Sprintf("order=%s&", PickOne(STATION_SORT_FIELDS))
-	s += fmt.Sprintf("language=%s&", PickOne(LANGUAGES))
-	s += "&reverse=true"
-	return s
-}
-
 func parse_query_url_with_language(station int, language string) string {
 	s := fmt.Sprintf("https://%s/json/stations/search?", RADIO_SERVERS[station])
 	s += fmt.Sprintf("limit=%d&", 10)
@@ -132,7 +123,7 @@ func get_random_station(currentStation Station) (Station, error) {
 
 func search_stations() ([]Station, error) {
 
-	if time.Since(last_search_time) < 300*time.Second && len(last_stations_search_results) > 0 {
+	if time.Since(last_search_time) < 180*time.Second && len(last_stations_search_results) > 0 {
 		return last_stations_search_results, nil
 	}
 
