@@ -66,9 +66,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	var spotifyClient *SpotifyClient
-	var spotifyFunc func(*Display) (*SpotifyClient, error)
-
 	// To enable Audd.io song identification, place your api token
 	// in a file called `auddio_token.txt`
 	b, err := os.ReadFile(AUDDIO_TOKEN_FILE)
@@ -77,6 +74,9 @@ func main() {
 		AUDDIO_API_KEY = string(b)
 		log.Printf("[IDENTIFY] Enabled: %s\n", AUDDIO_API_KEY)
 	}
+
+	var spotifyClient *SpotifyClient
+	var spotifyFunc func(*Display) (*SpotifyClient, error)
 
 	_, err = os.ReadFile(OK_HTML)
 	if err != nil {
@@ -212,7 +212,7 @@ func main() {
 				isPlaying = false
 			case track := <-identifySongResult:
 				if track.OK {
-					if spotifyClient == nil || track.SpotifyID != "" {
+					if spotifyClient == nil || track.SpotifyID == "" {
 						escaped := url.QueryEscape(track.Title + " " + track.Artist)
 						yt_seatrch_url := YOUTUBE_SEARCH + escaped
 						display.ShowQR(yt_seatrch_url, 60)

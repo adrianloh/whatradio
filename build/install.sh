@@ -19,6 +19,11 @@ sudo apt-get install -y ffmpeg
 
 # Content to be added to /boot/config.txt
 boot_config_content="
+
+# Boot faster
+disable_splash=1
+boot_delay=0
+
 # Enable ST7789 display
 dtparam=spi=on
 
@@ -81,5 +86,11 @@ systemctl daemon-reload
 
 # Enable whatradio service
 systemctl enable whatradio
+
+sudo systemctl disable hciuart.service
+sudo systemctl disable  raspi-config.service
+sudo systemctl disable keyboard-setup.service
+sudo systemctl disable ModemManager.service
+sudo systemctl disable systemd-timesyncd.service
 
 echo "Setup completed."
