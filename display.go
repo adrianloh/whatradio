@@ -39,15 +39,15 @@ type StatusConfig struct {
 }
 
 var DISPLAY_CONFIGS = map[int]StatusConfig{
-	SPLASH:   StatusConfig{`splash`, 250, 0},
-	SEARCH:   StatusConfig{`search`, 500, 0},
-	PLAYING:  StatusConfig{`play`, 250, 0},
-	PLAYFAV:  StatusConfig{`playfav`, 250, 0},
-	ADDFAV:   StatusConfig{`addfav`, 100, 3},
-	ERROR:    StatusConfig{`error`, 250, 3},
-	IDENTIFY: StatusConfig{`identify`, 250, 0},
-	OKAY:     StatusConfig{`okay`, 250, 3},
-	HUH:      StatusConfig{`huh`, 250, 3},
+	SPLASH:   StatusConfig{`splash`, 100, 0},
+	SEARCH:   StatusConfig{`search`, 100, 0},
+	PLAYING:  StatusConfig{`play`, 100, 0},
+	PLAYFAV:  StatusConfig{`playfav`, 100, 0},
+	ADDFAV:   StatusConfig{`addfav`, 100, 4},
+	ERROR:    StatusConfig{`error`, 100, 3},
+	IDENTIFY: StatusConfig{`identify`, 100, 0},
+	OKAY:     StatusConfig{`okay`, 100, 3},
+	HUH:      StatusConfig{`huh`, 100, 3},
 }
 
 type Display struct {
@@ -136,8 +136,9 @@ func (d *Display) loadImages(prefix string) error {
 		return fmt.Errorf("[DISPLAY] No images loaded `%s` set: %d last: %d", prefix, max, last_frame)
 	}
 	images := []*InfiniteReader{}
-	frames := getIntegersAtRegularIntervals(last_frame, 6)
-	for _, i := range frames {
+	// frames := getIntegersAtRegularIntervals(last_frame, 12)
+	for i := 0; i <= last_frame; i++ {
+		// for _, i := range frames {
 		fp := filepath.Join(STATUS_IMAGES_PATH, fmt.Sprintf("%s_%03d.gif", prefix_with_set, i))
 		img, err := os.Open(fp)
 		if err != nil {

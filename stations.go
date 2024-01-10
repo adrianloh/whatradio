@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ var (
 		"pop",
 	}
 
-	STATION_SORT_FIELDS = []string{"clickcount", "votes", "clicktrend"}
+	STATION_SORT_FIELDS = []string{"clickcount", "votes", "clicktrend", "random"}
 	RADIO_SERVERS       = []string{`de1.api.radio-browser.info`, `at1.api.radio-browser.info`, `nl1.api.radio-browser.info`}
 	LANGUAGES           = []string{}
 
@@ -85,12 +86,14 @@ func get_radio_servers() error {
 
 // https://de1.api.radio-browser.info/#Advanced_station_search
 // https://jsonviewer.stack.hu/#http://de1.api.radio-browser.info/json/stations/search?limit=3&order=clickcount&language=english&reverse=true
-func parse_query_url_with_language(station int, language string) string {
-	s := fmt.Sprintf("https://%s/json/stations/search?", RADIO_SERVERS[station])
-	s += fmt.Sprintf("limit=%d&", 10)
+func parse_query_url() string {
+	s := fmt.Sprintf("https://%s/json/stations/search?", PickOne(RADIO_SERVERS))
+	s += fmt.Sprintf("limit=%d&", 50)
 	s += fmt.Sprintf("order=%s&", PickOne(STATION_SORT_FIELDS))
-	s += fmt.Sprintf("language=%s&", language)
-	s += "&reverse=true"
+	s += fmt.Sprintf("language=%s&", PickOne(LANGUAGES))
+	if rand.Float64() < 0.5 {
+		s += "&reverse=true"
+	}
 	return s
 }
 
@@ -122,53 +125,24 @@ func get_random_station(currentStation Station) (Station, error) {
 }
 
 func search_stations() ([]Station, error) {
+	// if time.Since(last_search_time) < 60*time.Second && len(last_stations_search_results) > 0 {
+	// 	return last_stations_search_results, nil
+	// }
+	var stations []Station
 
-	if time.Since(last_search_time) < 180*time.Second && len(last_stations_search_results) > 0 {
-		return last_stations_search_results, nil
+	query_url := parse_query_url()
+
+	resp, err := http.Get(query_url)
+	if err != nil {
+		return nil, err
 	}
-
-	var selected_languages []string
-
-	if len(LANGUAGES) > 3 {
-		Shuffle(LANGUAGES)
-		selected_languages = LANGUAGES[:3]
-	} else {
-		selected_languages = LANGUAGES
-	}
-
-	results := make(chan []Station)
-
-	for i, language := range selected_languages {
-		go func(station int, language string) {
-			query_url := parse_query_url_with_language(i, language)
-			resp, err := http.Get(query_url)
-			if err != nil {
-				results <- []Station{}
-				return
-			}
-			results <- json_to_stations(resp)
-			fmt.Println("[STATIONS] Fetched language: " + language)
-		}(i, language)
-	}
-
-	stations := []Station{}
-
-	for i := 0; i < len(selected_languages); i++ {
-		newStations := <-results
-		stations = append(stations, newStations...)
-	}
-
+	stations = json_to_stations(resp)
 	if len(stations) == 0 {
-		return stations, errors.New("No stations found")
+		return nil, errors.New("No stations found")
 	}
-
-	Shuffle(stations)
-
 	last_search_time = time.Now()
 	last_stations_search_results = stations
-
 	return stations, nil
-
 }
 
 func json_to_stations(resp *http.Response) []Station {

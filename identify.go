@@ -54,7 +54,7 @@ func RecordAndIdentifySong(audioSink *AudioSink, identifySongResult chan Track) 
 		identifySongResult <- track
 		return
 	}
-	fmt.Printf("[RECORD] Saved: %s", recordedClioPath)
+	fmt.Printf("[RECORD] Saved: %s\n", recordedClioPath)
 	result, err := identify_song_file(recordedClioPath)
 	if err != nil {
 		fmt.Printf("[IDENTIFY] Failed: %s\n", err)
