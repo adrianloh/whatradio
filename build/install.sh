@@ -64,7 +64,8 @@ echo "$asound_conf_content" > /etc/asound.conf
 whatradio_service_content="
 [Unit]
 Description=What Radio
-After=network.target
+After=network-online.target wpa_supplicant.service
+Wants=network-online.target
 
 [Service]
 ExecStart=/home/pi/whatradio/whatradio
@@ -92,5 +93,7 @@ sudo systemctl disable  raspi-config.service
 sudo systemctl disable keyboard-setup.service
 sudo systemctl disable ModemManager.service
 sudo systemctl disable systemd-timesyncd.service
+sudo apt-get install -y ntpdate
+sudo ntpdate pool.ntp.org
 
 echo "Setup completed."
