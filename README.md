@@ -1,12 +1,19 @@
 # WhatRadio
 
-Transform your Raspberry Pi Zero with the [Pimoroni DAC](https://shop.pimoroni.com/products/pirate-audio-line-out?variant=31189750546515) into an internet radio.
+An internet radio built on Raspberry Pi Zero 2 with the [Pimoroni DAC](https://shop.pimoroni.com/products/pirate-audio-line-out?variant=31189750546515).
 
 ## Base Setup
 To set up WhatRadio, 
 1. Place the `build` directory in `/home/pi`
 2. Rename the directory to `whatradio` e.g. `/home/pi/whatradio`
 3. Run `sudo ./install.sh`
+
+If you're running headless, `rsync` the folder to your Pi:
+```
+ssh pi@raspberrypi.local mkdir /home/pi/whatradio
+rsync -avz build/ pi@raspberrypi.local:/home/pi/whatradio/
+```
+
 
 ## Song Recognition
 Identify the song currently playing (and even add it to your Spotify library!) automagically.
@@ -38,6 +45,12 @@ Available languages are contained in `languages.txt`. You can edit this file to 
 |   Y (press)  |   Play a station from favorites  |
 |   Y (hold)  |   Add current station to favorites  |
 
-Notes:
+### Test Platform:
 
-1. For best experience, run this on a Raspberry Pi Zero 2 W
+1. For best experience, run this on a Raspberry Pi Zero 2 W. To run on the Zero 1, you'll have to re-compile the binary with:
+```
+export GOOS=linux
+export GOARCH=arm
+export GOARM=6  # Zero 2 would be `7`
+```
+2. OS: Raspberry Pi OS (Legacy, 64-bit)
