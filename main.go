@@ -102,7 +102,7 @@ func main() {
 		}
 	}
 
-	display.ShowStatus(SPLASH)
+	display.ShowStatus <- SPLASH
 
 	// `X` button
 	playRandom := make(chan bool)
@@ -148,7 +148,7 @@ func main() {
 					continue
 				}
 				isPlaying = true
-				display.ShowStatus(PLAYFAV)
+				display.ShowStatus <- PLAYFAV
 				otherStations := []Station{}
 				for _, station := range favorite_stations {
 					if station.UUID != currentStation.UUID {
@@ -166,18 +166,18 @@ func main() {
 					continue
 				}
 				isPlaying = true
-				display.ShowStatus(SEARCH)
+				display.ShowStatus <- SEARCH
 				log.Printf("[STATIONS] Getting random station")
 				station, err := get_random_station(currentStation.Station)
 				if err != nil {
 					log.Printf("Failed to fetch new station: %s", err)
 					isPlaying = false
-					display.ShowStatus(ERROR)
+					display.ShowStatus <- ERROR
 					continue
 				}
 				playStation <- station
 			case <-saveFav:
-				display.ShowStatus(ADDFAV)
+				display.ShowStatus <- ADDFAV
 				err := add_favorite_station(currentStation.Station, favorite_stations)
 				if err != nil {
 					log.Printf("Failed to save favorite station: %s", err)
@@ -190,7 +190,7 @@ func main() {
 					continue
 				}
 				go RecordAndIdentifySong(audioSink, identifySongResult)
-				display.ShowStatus(IDENTIFY)
+				display.ShowStatus <- IDENTIFY
 			}
 		}
 	}()
@@ -202,12 +202,12 @@ func main() {
 				go play_station(station, audioSink, currentStation.Process.Process, nextStationResult)
 			case station := <-nextStationResult:
 				if station.Started {
-					display.ShowStatus(PLAYING)
+					display.ShowStatus <- PLAYING
 					log.Printf("SET: %s", station.Name)
 					currentStation = &station
 				} else {
 					log.Printf("[TIMEOUT] Station did not start")
-					display.ShowStatus(ERROR)
+					display.ShowStatus <- ERROR
 				}
 				isPlaying = false
 			case track := <-identifySongResult:
@@ -215,18 +215,18 @@ func main() {
 					if spotifyClient == nil || track.SpotifyID == "" {
 						escaped := url.QueryEscape(track.Title + " " + track.Artist)
 						yt_seatrch_url := YOUTUBE_SEARCH + escaped
-						display.ShowQR(yt_seatrch_url, 60)
+						display.ShowQR <- QR{yt_seatrch_url, 60}
 						continue
 					}
 					err := spotifyClient.AddTrackToLibrary(track.SpotifyID)
 					if err != nil {
-						display.ShowStatus(ERROR)
+						display.ShowStatus <- ERROR
 						continue
 					}
 					log.Printf("[SPOTIFY] Added: %s - %s", track.Title, track.Artist)
-					display.ShowStatus(ADDFAV)
+					display.ShowStatus <- ADDFAV
 				} else {
-					display.ShowStatus(HUH)
+					display.ShowStatus <- HUH
 				}
 			}
 		}

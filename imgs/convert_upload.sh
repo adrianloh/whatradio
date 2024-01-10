@@ -20,4 +20,4 @@ filename="${filename%.*}"
 # Run the ImageMagick convert command
 convert "$1" -coalesce -resize 240x240 -background transparent -gravity center -extent 240x240 -format gif "../build/gifs/${filename}_%03d.gif"
 
-scp ../build/gifs/"${filename}_"*.gif pi@192.168.1.33:/home/pi/gifs/
+scp ../build/gifs/"${filename}_"*.gif pi@192.168.1.37:/home/pi/whatradio/gifs/

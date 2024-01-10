@@ -21,7 +21,9 @@ import (
 var STATUS_IMAGES_PATH = "gifs"
 
 const (
-	SPLASH = iota
+	PERMANENT = iota
+	STATIC
+	SPLASH
 	SEARCH
 	PLAYING
 	PLAYFAV
@@ -33,30 +35,43 @@ const (
 )
 
 type StatusConfig struct {
-	String      string
-	RefreshRate int
-	Temporary   int // If this is > 0, the previous status will be restored after this many seconds
+	String       string
+	RefreshRate  int
+	RestoreState int
+}
+
+type QR struct {
+	String    string
+	Temporary int
 }
 
 var DISPLAY_CONFIGS = map[int]StatusConfig{
-	SPLASH:   StatusConfig{`splash`, 100, 0},
-	SEARCH:   StatusConfig{`search`, 100, 0},
-	PLAYING:  StatusConfig{`play`, 100, 0},
-	PLAYFAV:  StatusConfig{`playfav`, 100, 0},
-	ADDFAV:   StatusConfig{`addfav`, 100, 4},
-	ERROR:    StatusConfig{`error`, 100, 3},
-	IDENTIFY: StatusConfig{`identify`, 100, 0},
-	OKAY:     StatusConfig{`okay`, 100, 3},
-	HUH:      StatusConfig{`huh`, 100, 3},
+
+	// `PERMANENT` means the animation will play forever until a new animation overrides it
+
+	SPLASH:  StatusConfig{`splash`, 100, PERMANENT},
+	PLAYING: StatusConfig{`play`, 100, PERMANENT},
+
+	SEARCH:   StatusConfig{`search`, 100, PERMANENT},
+	PLAYFAV:  StatusConfig{`playfav`, 100, PERMANENT},
+	IDENTIFY: StatusConfig{`identify`, 100, PERMANENT},
+	ADDFAV:   StatusConfig{`addfav`, 100, PLAYING},
+
+	ERROR: StatusConfig{`error`, 100, PLAYING},
+	OKAY:  StatusConfig{`okay`, 100, PLAYING},
+	HUH:   StatusConfig{`huh`, 100, PLAYING},
 }
 
 type Display struct {
-	dsp         *display.Display
-	imageBuffer []*InfiniteReader
-	cancel      context.CancelFunc
-	last_set    map[string]int
-	last_frame  map[string]int
-	renderChan  chan int
+	dsp           *display.Display
+	imageBuffer   []*InfiniteReader
+	cancel        context.CancelFunc
+	last_set      map[string]int
+	last_frame    map[string]int
+	renderChan    chan int
+	currentStatus int
+	ShowStatus    chan int
+	ShowQR        chan QR
 }
 
 func NewDisplay() (*Display, error) {
@@ -81,38 +96,62 @@ func (d *Display) Init() error {
 	}
 	d.last_set = last_set
 	d.last_frame = last_frame
+	d.ShowStatus = make(chan int)
+	d.ShowQR = make(chan QR)
+	go func() {
+		for {
+			select {
+			case status := <-d.ShowStatus:
+				if status == d.currentStatus {
+					continue
+				}
+				d.showStatus(status)
+			case qr := <-d.ShowQR:
+				d.showQR(qr.String, qr.Temporary)
+			}
+		}
+	}()
 	return nil
 }
 
-func (d *Display) ShowQR(str string, temporary int) error {
-	if temporary > 0 {
-		go d.restorePrevious(temporary)
-	}
+func (d *Display) showQR(str string, temporary int) error {
 	png, err := qrcode.Encode(str, qrcode.Medium, 240)
 	if err != nil {
 		return err
 	}
 	pngReader := bytes.NewReader(png)
 	imageInfiniteReader, _ := NewInfiniteReader(pngReader)
+	if d.cancel != nil {
+		d.cancel()
+	}
+	d.cancel = nil
+	if temporary > 0 {
+		go d.restorePreviousStatusAfter(temporary, d.currentStatus)
+	}
+	d.currentStatus = STATIC
 	d.imageBuffer = []*InfiniteReader{imageInfiniteReader}
 	go d.displayStatic()
 	return nil
 }
 
-func (d *Display) ShowStatus(status int) {
+func (d *Display) showStatus(status int) {
 	config := DISPLAY_CONFIGS[status]
-	if config.Temporary > 0 {
-		go d.restorePrevious(config.Temporary)
-	}
 	file_prefix := config.String
 	err := d.checkImages(file_prefix)
 	if err != nil {
 		log.Printf("[DISPLAY: %s] Error: %v", file_prefix, err)
+		return
 	}
-	err = d.loadImages(file_prefix)
+	err = d.loadImages(config.String)
 	if err != nil {
-		log.Printf("[DISPLAY: %s] Error: %v", file_prefix, err)
+		log.Printf("[DISPLAY: %s] Error: %v", config.String, err)
+		return
 	}
+	// If we get here, the previous animation loop has been canceled and the new buffer has been loaded
+	if config.RestoreState != PERMANENT {
+		go d.restorePreviousStatusAfter(5, config.RestoreState)
+	}
+	d.currentStatus = status
 	go d.playAnimation(config.RefreshRate)
 }
 
@@ -150,24 +189,21 @@ func (d *Display) loadImages(prefix string) error {
 	if len(images) == 0 {
 		return fmt.Errorf("[DISPLAY] No images loaded `%s` set: %d last: %d", prefix, max, last_frame)
 	}
+	// You must cancel the previous animation before loading a new one
+	if d.cancel != nil {
+		d.cancel()
+	}
 	d.imageBuffer = images
 	return nil
 }
 
 func (d *Display) displayStatic() {
-	if d.cancel != nil {
-		d.cancel()
-	}
-	d.cancel = nil
 	img := d.imageBuffer[0]
 	d.dsp.FillScreen(color.RGBA{R: 0, G: 0, B: 0, A: 0})
 	d.dsp.DrawImage(img)
 }
 
 func (d *Display) playAnimation(refreshRate int) {
-	if d.cancel != nil {
-		d.cancel()
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	d.cancel = cancel
 	ticker := time.NewTicker(time.Duration(refreshRate) * time.Millisecond)
@@ -184,9 +220,9 @@ func (d *Display) playAnimation(refreshRate int) {
 	}
 }
 
-func (d *Display) restorePrevious(wait int) {
+func (d *Display) restorePreviousStatusAfter(wait int, prevState int) {
 	time.Sleep(time.Duration(wait) * time.Second)
-	d.ShowStatus(PLAYING)
+	d.ShowStatus <- prevState
 }
 
 func getIntegersAtRegularIntervals(x, y int) []int {
