@@ -170,7 +170,7 @@ func main() {
 				log.Printf("[STATIONS] Getting random station")
 				station, err := get_random_station(currentStation.Station)
 				if err != nil {
-					log.Printf("Failed to fetch new station: %s", err)
+					log.Printf("[STATIONS] %s", err)
 					isPlaying = false
 					display.ShowStatus <- ERROR
 					continue
@@ -215,7 +215,7 @@ func main() {
 					if spotifyClient == nil || track.SpotifyID == "" {
 						escaped := url.QueryEscape(track.Title + " " + track.Artist)
 						yt_seatrch_url := YOUTUBE_SEARCH + escaped
-						display.ShowQR <- QR{yt_seatrch_url, 60}
+						display.ShowQR <- QR{yt_seatrch_url, 60, PLAYING}
 						continue
 					}
 					err := spotifyClient.AddTrackToLibrary(track.SpotifyID)

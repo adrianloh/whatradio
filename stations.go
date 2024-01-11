@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -84,13 +85,11 @@ func get_radio_servers() error {
 	return nil
 }
 
-// https://de1.api.radio-browser.info/#Advanced_station_search
-// https://jsonviewer.stack.hu/#http://de1.api.radio-browser.info/json/stations/search?limit=3&order=clickcount&language=english&reverse=true
-func parse_query_url() string {
-	s := fmt.Sprintf("https://%s/json/stations/search?", PickOne(RADIO_SERVERS))
-	s += fmt.Sprintf("limit=%d&", 50)
-	s += fmt.Sprintf("order=%s&", PickOne(STATION_SORT_FIELDS))
-	s += fmt.Sprintf("language=%s&", PickOne(LANGUAGES))
+func parse_query_url(stationURL string, limit int, sortfield string, language string) string {
+	s := fmt.Sprintf("https://%s/json/stations/search?", stationURL)
+	s += fmt.Sprintf("limit=%d&", limit)
+	s += fmt.Sprintf("order=%s&", sortfield)
+	s += fmt.Sprintf("language=%s&", language)
 	if rand.Float64() < 0.5 {
 		s += "&reverse=true"
 	}
@@ -111,26 +110,65 @@ func get_station_by_uuid(uuid string) (Station, error) {
 }
 
 func get_random_station(currentStation Station) (Station, error) {
-	stations, err := search_stations()
-	if err != nil { // Note: An empty list of stations is also an error
-		return Station{}, err
+
+	stationsResult := make(chan []Station)
+
+	selectedLanguages := []string{}
+	Shuffle(LANGUAGES)
+	if len(LANGUAGES) > 3 {
+		selectedLanguages = LANGUAGES[:3]
+	} else {
+		for len(selectedLanguages) < len(RADIO_SERVERS) {
+			selectedLanguages = append(selectedLanguages, PickOne(LANGUAGES))
+		}
 	}
-	Shuffle(stations)
-	for _, station := range stations {
+
+	for i, language := range selectedLanguages {
+		go func(i int, language string) {
+			server := RADIO_SERVERS[i]
+			query_url := parse_query_url(
+				server,
+				10,
+				PickOne(STATION_SORT_FIELDS),
+				language)
+			stations, err := search_stations(query_url)
+			if err != nil {
+				log.Printf("[%s] Failed: %s", server, err)
+			}
+			stationsResult <- stations
+		}(i, language)
+	}
+
+	stationResults := []Station{}
+
+	for i := 0; i < len(RADIO_SERVERS); i++ {
+		stations := <-stationsResult
+		if len(stations) > 0 {
+			stationResults = append(stationResults, stations...)
+		}
+	}
+
+	if len(stationResults) == 0 {
+		return Station{}, errors.New("No stations returned from search")
+	}
+
+	Shuffle(stationResults)
+
+	for _, station := range stationResults {
 		if station.UUID != currentStation.UUID {
 			return station, nil
 		}
 	}
-	return BBC_ONE, nil
+
+	return Station{}, errors.New("Failed to get random station")
+
 }
 
-func search_stations() ([]Station, error) {
+func search_stations(query_url string) ([]Station, error) {
 	// if time.Since(last_search_time) < 60*time.Second && len(last_stations_search_results) > 0 {
 	// 	return last_stations_search_results, nil
 	// }
 	var stations []Station
-
-	query_url := parse_query_url()
 
 	resp, err := http.Get(query_url)
 	if err != nil {

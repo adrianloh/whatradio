@@ -63,7 +63,7 @@ func InitSpotifyClient(display *Display) (*SpotifyClient, error) {
 	go http.ListenAndServe(":54541", nil)
 
 	url := auth.AuthURL(state)
-	display.ShowQR <- QR{url, 0}
+	display.ShowQR <- QR{url, 0, PERMANENT}
 	fmt.Println("login to Spotify:\n", url)
 
 	select {

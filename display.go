@@ -41,8 +41,9 @@ type StatusConfig struct {
 }
 
 type QR struct {
-	String    string
-	Temporary int
+	String       string
+	Temporary    int
+	RestoreState int
 }
 
 var DISPLAY_CONFIGS = map[int]StatusConfig{
@@ -107,14 +108,14 @@ func (d *Display) Init() error {
 				}
 				d.showStatus(status)
 			case qr := <-d.ShowQR:
-				d.showQR(qr.String, qr.Temporary)
+				d.showQR(qr.String, qr.Temporary, qr.RestoreState)
 			}
 		}
 	}()
 	return nil
 }
 
-func (d *Display) showQR(str string, temporary int) error {
+func (d *Display) showQR(str string, temporary int, restoreState int) error {
 	png, err := qrcode.Encode(str, qrcode.Medium, 240)
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func (d *Display) showQR(str string, temporary int) error {
 	}
 	d.cancel = nil
 	if temporary > 0 {
-		go d.restorePreviousStatusAfter(temporary, d.currentStatus)
+		go d.restorePreviousStatusAfter(temporary, restoreState)
 	}
 	d.currentStatus = STATIC
 	d.imageBuffer = []*InfiniteReader{imageInfiniteReader}
