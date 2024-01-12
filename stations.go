@@ -149,7 +149,13 @@ func get_random_station(currentStation Station) (Station, error) {
 	}
 
 	if len(stationResults) == 0 {
-		return Station{}, errors.New("No stations returned from search")
+		if len(last_stations_search_results) == 0 {
+			return Station{}, errors.New("No stations returned from search")
+		}
+		stationResults = last_stations_search_results
+	} else {
+		last_search_time = time.Now()
+		last_stations_search_results = stationResults
 	}
 
 	Shuffle(stationResults)
@@ -178,8 +184,6 @@ func search_stations(query_url string) ([]Station, error) {
 	if len(stations) == 0 {
 		return nil, errors.New("No stations found")
 	}
-	last_search_time = time.Now()
-	last_stations_search_results = stations
 	return stations, nil
 }
 

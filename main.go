@@ -1,24 +1,16 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
 
 var HOME = getExecutableDirectory()
-
-type StationProcess struct {
-	Station
-	Process *exec.Cmd
-	Started bool
-}
 
 type Status struct {
 	Name string
@@ -118,12 +110,12 @@ func main() {
 	playStation := make(chan Station)
 
 	// Channel receiving the result of #play_station
-	nextStationResult := make(chan StationProcess)
+	nextStationResult := make(chan StationStream)
 
 	identifySongResult := make(chan Track)
 
 	// The current station, set after receiving the result on nextStationResult
-	var currentStation = &StationProcess{
+	var currentStation = &StationStream{
 		Process: ffmpegCmd,
 	}
 
@@ -199,12 +191,13 @@ func main() {
 		for {
 			select {
 			case station := <-playStation:
-				go play_station(station, audioSink, currentStation.Process.Process, nextStationResult)
+				go NewStationStream(station, audioSink, currentStation, nextStationResult)
 			case station := <-nextStationResult:
 				if station.Started {
 					display.ShowStatus <- PLAYING
 					log.Printf("SET: %s", station.Name)
 					currentStation = &station
+					go station.Monitor(playRandom, display)
 				} else {
 					log.Printf("[TIMEOUT] Station did not start")
 					display.ShowStatus <- ERROR
@@ -232,68 +225,14 @@ func main() {
 		}
 	}()
 
+	// playStation <- Station{
+	// 	Name: "Silent Test Station",
+	// 	URL:  "https://smack.s3.ap-southeast-1.amazonaws.com/pie_silence.mp3",
+	// }
 	playStation <- PickOne(favorite_stations)
 
 	select {}
 
-}
-
-type Buff struct {
-	FirstChunk             bool
-	Sink                   *AudioSink
-	PreviousStationProcess *os.Process
-	Failtimer              *time.Timer
-	DataStarted            chan bool
-}
-
-func (buff *Buff) Write(b []byte) (n int, err error) {
-	if buff.FirstChunk {
-		buff.Failtimer.Stop()
-		if buff.PreviousStationProcess != nil {
-			buff.PreviousStationProcess.Kill()
-			log.Println("Stopped previous station")
-		}
-		buff.FirstChunk = false
-		buff.DataStarted <- true
-	}
-	buff.Sink.Write(b)
-	return len(b), nil
-}
-
-func play_station(station Station, sink *AudioSink, prevStation *os.Process, result chan StationProcess) {
-	log.Printf("GET: %s", station.Name)
-	buff := &Buff{
-		true,
-		sink,
-		prevStation,
-		time.NewTimer(30 * time.Second), // How long to wait for the next station to start before considering it a failure
-		make(chan bool),
-	}
-	ffmpegCmd := exec.Command("ffmpeg", "-hide_banner", "-loglevel", "error", "-i", station.URL, "-f", "wav", "-ar", "44100", "-ac", "2", "-")
-	ffmpegOut, err := ffmpegCmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-	if err := ffmpegCmd.Start(); err != nil {
-		panic(err)
-	}
-	go ffmpegCmd.Wait()
-	go func() {
-		_, err := io.Copy(buff, ffmpegOut)
-		if err != nil {
-			log.Printf("[STATION] Stream closed: %s", station.Name)
-		}
-	}()
-	stationProcess := StationProcess{station, ffmpegCmd, false}
-	select {
-	case <-buff.DataStarted:
-		log.Printf("Streaming started: %s", station.Name)
-		stationProcess.Started = true
-		result <- stationProcess
-	case <-buff.Failtimer.C:
-		ffmpegCmd.Process.Kill()
-		result <- stationProcess
-	}
 }
 
 func add_favorite_station(newStation Station, currentStations []Station) error {
