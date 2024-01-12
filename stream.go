@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"strings"
 	"time"
@@ -100,10 +99,10 @@ monitorLoop:
 			// This only happens to this main loop when the next station calls `Stop()`
 			return
 		case <-streamDataStopped:
-			log.Printf("[STREAM] No data received for %d seconds", int(time.Since(stream.Buff.LastRead).Seconds()))
+			fmt.Printf("[STREAM] No data received for %d seconds\n", int(time.Since(stream.Buff.LastRead).Seconds()))
 			break monitorLoop
 		case <-silentTimeout.C:
-			log.Printf("[STREAM] Too much quiet, moving on...")
+			fmt.Println("[STREAM] Too much quiet, moving on...")
 			break monitorLoop
 		}
 	}
@@ -121,7 +120,7 @@ func (stream *StationStream) Stop() {
 }
 
 func NewStationStream(station Station, sink *AudioSink, prevStation *StationStream, result chan StationStream) {
-	log.Printf("[ GET ]: %s", station.Name)
+	fmt.Printf("[ GET ]: %s\n", station.Name)
 	buff := &Buff{
 		true,
 		sink,
@@ -151,7 +150,7 @@ func NewStationStream(station Station, sink *AudioSink, prevStation *StationStre
 		_, err := io.Copy(buff, ffmpegOut)
 		if err != nil {
 			// Happens when we kill ffmpeg deliberately, or, when something craps out with the stream
-			log.Printf("[STREAM] ended: %s", station.Name)
+			fmt.Printf("[STREAM] ended: %s\n", station.Name)
 		}
 	}()
 	stationProcess := StationStream{
@@ -163,7 +162,7 @@ func NewStationStream(station Station, sink *AudioSink, prevStation *StationStre
 		false}
 	select {
 	case <-buff.DataStarted:
-		log.Printf("[STREAM] started: %s", station.Name)
+		fmt.Printf("[STREAM] started: %s\n", station.Name)
 		stationProcess.Started = true
 		result <- stationProcess
 	case <-buff.Failtimer.C:
