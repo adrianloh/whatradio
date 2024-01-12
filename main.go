@@ -281,7 +281,7 @@ func play_station(station Station, sink *AudioSink, prevStation *os.Process, res
 	go func() {
 		_, err := io.Copy(buff, ffmpegOut)
 		if err != nil {
-			log.Printf("[%s] [STATION] Stream closed: %s", time.Now().Format("15:04:05"), station.Name)
+			log.Printf("[STATION] Stream closed: %s", station.Name)
 		}
 	}()
 	stationProcess := StationProcess{station, ffmpegCmd, false}
