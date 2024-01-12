@@ -58,7 +58,7 @@ func (stream *StationStream) Monitor(playRandom chan bool, display *Display) {
 			case <-ctx.Done():
 				return
 			case <-checkDataStream.C:
-				if time.Since(stream.Buff.LastRead) > 30*time.Second {
+				if time.Since(stream.Buff.LastRead) > 15*time.Second {
 					streamDataStopped <- true
 				}
 			}
@@ -100,7 +100,7 @@ monitorLoop:
 			// This only happens to this main loop when the next station calls `Stop()`
 			return
 		case <-streamDataStopped:
-			log.Printf("[STREAM] No data received %s seconds", time.Since(stream.Buff.LastRead).Seconds())
+			log.Printf("[STREAM] No data received for %d seconds", int(time.Since(stream.Buff.LastRead).Seconds()))
 			break monitorLoop
 		case <-silentTimeout.C:
 			log.Printf("[STREAM] Too much quiet, moving on...")
@@ -121,7 +121,7 @@ func (stream *StationStream) Stop() {
 }
 
 func NewStationStream(station Station, sink *AudioSink, prevStation *StationStream, result chan StationStream) {
-	log.Printf("GET: %s", station.Name)
+	log.Printf("[ GET ]: %s", station.Name)
 	buff := &Buff{
 		true,
 		sink,
@@ -150,7 +150,8 @@ func NewStationStream(station Station, sink *AudioSink, prevStation *StationStre
 	go func() {
 		_, err := io.Copy(buff, ffmpegOut)
 		if err != nil {
-			log.Printf("[STATION] Stream closed: %s", station.Name)
+			// Happens when we kill ffmpeg deliberately, or, when something craps out with the stream
+			log.Printf("[STREAM] ended: %s", station.Name)
 		}
 	}()
 	stationProcess := StationStream{
@@ -162,7 +163,7 @@ func NewStationStream(station Station, sink *AudioSink, prevStation *StationStre
 		false}
 	select {
 	case <-buff.DataStarted:
-		log.Printf("Streaming started: %s", station.Name)
+		log.Printf("[STREAM] started: %s", station.Name)
 		stationProcess.Started = true
 		result <- stationProcess
 	case <-buff.Failtimer.C:

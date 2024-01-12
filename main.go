@@ -1,11 +1,12 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"github.com/stianeikeland/go-rpio/v4"
 )
@@ -25,20 +26,20 @@ func main() {
 	// Required by display.go
 	STATUS_IMAGES_PATH = filepath.Join(HOME, STATUS_IMAGES_PATH)
 	if _, err := os.Stat(STATUS_IMAGES_PATH); os.IsNotExist(err) {
-		log.Printf("[DISPLAY] No status animations path: %s", STATUS_IMAGES_PATH)
+		fmt.Printf("[DISPLAY] No status animations path: %s\n", STATUS_IMAGES_PATH)
 		os.Exit(1)
 	}
 
 	// Required by stations.go
 	err := get_languages_from_file()
 	if err != nil {
-		log.Printf("[STATIONS] Failed to get languages: %s", err)
+		fmt.Printf("[STATIONS] Failed to get languages: %s\n", err)
 		os.Exit(1)
 	}
 
 	// GPIO
 	if err := rpio.Open(); err != nil {
-		log.Printf("[GPIO] Failed to open GPIO: %s", err)
+		fmt.Printf("[GPIO] Failed to open GPIO: %s\n", err)
 		os.Exit(1)
 	}
 	defer rpio.Close()
@@ -46,7 +47,7 @@ func main() {
 	// Init display ST7789
 	display, err := NewDisplay()
 	if err != nil {
-		log.Printf("[DISPLAY] Failed to init display: %s", err)
+		fmt.Printf("[DISPLAY] Failed to init display: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -54,7 +55,7 @@ func main() {
 	ffmpegCmd := exec.Command("ffmpeg")
 	err = ffmpegCmd.Start()
 	if err != nil {
-		log.Printf("[FFMPEG] Failed to start: %s", err)
+		fmt.Printf("[FFMPEG] Failed to start: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -64,7 +65,7 @@ func main() {
 	if err == nil && len(b) > 4 {
 		IDENTIFY_ENABLED = true
 		AUDDIO_API_KEY = string(b)
-		log.Printf("[IDENTIFY] Enabled: %s\n", AUDDIO_API_KEY)
+		fmt.Printf("[IDENTIFY] Enabled: %s\n\n", AUDDIO_API_KEY)
 	}
 
 	var spotifyClient *SpotifyClient
@@ -72,7 +73,7 @@ func main() {
 
 	_, err = os.ReadFile(OK_HTML)
 	if err != nil {
-		log.Printf("[SPOTIFY] `ok.html` missing.")
+		fmt.Println("[SPOTIFY] `ok.html` missing.")
 		os.Exit(1)
 	}
 
@@ -81,15 +82,15 @@ func main() {
 	b, err = os.ReadFile(SPOTIFY_TOKEN_FILE)
 	if err == nil {
 		if len(b) <= 4 {
-			log.Printf("[SPOTIFY] Enabled. Authenticating...")
+			fmt.Println("[SPOTIFY] Enabled. Authenticating...")
 			spotifyFunc = InitSpotifyClient
 		} else {
-			log.Printf("[SPOTIFY] Enabled. Reusing token.")
+			fmt.Println("[SPOTIFY] Enabled. Reusing token.")
 			spotifyFunc = RefreshSpotifyClient
 		}
 		spotifyClient, err = spotifyFunc(display)
 		if err != nil {
-			log.Printf("[SPOTIFY] Failed to init Spotify client: %s", err)
+			fmt.Printf("[SPOTIFY] Failed to init Spotify client: %s\n", err)
 			os.Exit(1)
 		}
 	}
@@ -136,7 +137,7 @@ func main() {
 			select {
 			case <-playFav:
 				if isPlaying {
-					log.Printf("[BUSY]")
+					fmt.Println("[BUSY]")
 					continue
 				}
 				isPlaying = true
@@ -154,15 +155,15 @@ func main() {
 				}
 			case <-playRandom:
 				if isPlaying {
-					log.Printf("[BUSY]")
+					fmt.Println("[BUSY]")
 					continue
 				}
 				isPlaying = true
 				display.ShowStatus <- SEARCH
-				log.Printf("[STATIONS] Getting random station")
+				fmt.Println("[STATIONS] Getting random station")
 				station, err := get_random_station(currentStation.Station)
 				if err != nil {
-					log.Printf("[STATIONS] %s", err)
+					fmt.Printf("[STATIONS] %s\n", err)
 					isPlaying = false
 					display.ShowStatus <- ERROR
 					continue
@@ -172,11 +173,11 @@ func main() {
 				display.ShowStatus <- ADDFAV
 				err := add_favorite_station(currentStation.Station, favorite_stations)
 				if err != nil {
-					log.Printf("Failed to save favorite station: %s", err)
+					fmt.Printf("Failed to save favorite station: %s\n", err)
 					continue
 				}
 				favorite_stations = append(favorite_stations, currentStation.Station)
-				log.Printf("[FAVORITES] [%d] Added: %s", len(favorite_stations), currentStation.Station.Name)
+				fmt.Printf("[FAVORITES] [%d] Added: %s\n", len(favorite_stations), currentStation.Station.Name)
 			case <-identifySong:
 				if !IDENTIFY_ENABLED {
 					continue
@@ -195,12 +196,20 @@ func main() {
 			case station := <-nextStationResult:
 				if station.Started {
 					display.ShowStatus <- PLAYING
-					log.Printf("SET: %s", station.Name)
+					fmt.Printf("[ SET ]: %s\n", station.Name)
 					currentStation = &station
 					go station.Monitor(playRandom, display)
 				} else {
-					log.Printf("[TIMEOUT] Station did not start")
-					display.ShowStatus <- ERROR
+					fmt.Println("[TIMEOUT] Station did not start")
+					// If a station is still playing, then let the user manually try again
+					if isAlive(currentStation.Process) {
+						display.ShowStatus <- ERROR
+					} else {
+						// If nothing is playing, then try again automatically. Note, if stations
+						// keep failing (in the case of the network being down), this branch
+						// will loop indefinitely
+						playRandom <- true
+					}
 				}
 				isPlaying = false
 			case track := <-identifySongResult:
@@ -216,7 +225,7 @@ func main() {
 						display.ShowStatus <- ERROR
 						continue
 					}
-					log.Printf("[SPOTIFY] Added: %s - %s", track.Title, track.Artist)
+					fmt.Printf("[SPOTIFY] Added: %s - %s\n", track.Title, track.Artist)
 					display.ShowStatus <- ADDFAV
 				} else {
 					display.ShowStatus <- HUH
@@ -244,6 +253,22 @@ func add_favorite_station(newStation Station, currentStations []Station) error {
 	}
 	currentStations = append(currentStations, newStation)
 	return saveFavoriteStations(currentStations)
+}
+
+func isAlive(cmd *exec.Cmd) bool {
+	// On Unix systems, FindProcess always succeeds and returns a Process
+	// On Windows, FindProcess only succeeds if the process exists
+	process, err := os.FindProcess(cmd.Process.Pid)
+	if err != nil {
+		return false
+	}
+
+	// Try to send signal 0 to check if the process is alive
+	if err := process.Signal(syscall.Signal(0)); err != nil {
+		return false
+	}
+
+	return cmd.ProcessState == nil || !cmd.ProcessState.Exited()
 }
 
 // NoOp is a function that accepts any number of arguments of any type with no return.
