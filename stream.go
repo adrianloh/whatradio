@@ -49,7 +49,7 @@ func (stream *StationStream) Monitor(playRandom chan bool, display *Display) {
 	checkDataStream := time.NewTicker(5 * time.Second)
 	streamDataStopped := make(chan bool)
 
-	max_silence := 60 * time.Second
+	max_silence := 30 * time.Second
 
 	go func() {
 		for {

@@ -32,6 +32,7 @@ const (
 	IDENTIFY
 	OKAY
 	HUH
+	TRASH
 )
 
 type StatusConfig struct {
@@ -61,6 +62,7 @@ var DISPLAY_CONFIGS = map[int]StatusConfig{
 	ERROR: StatusConfig{`error`, 100, PLAYING},
 	OKAY:  StatusConfig{`okay`, 100, PLAYING},
 	HUH:   StatusConfig{`huh`, 100, PLAYING},
+	TRASH: StatusConfig{`trash`, 100, PLAYING},
 }
 
 type Display struct {

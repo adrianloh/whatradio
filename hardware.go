@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	BTN_SHIFT       = 5
 	BTN_MUTED       = 6
 	BTN_PLAY_RANDOM = 16
 	BTN_PLAY_FAV    = 24
@@ -17,6 +18,15 @@ var (
 	CMD_MUTE   = []byte("set Master 0%\n")
 	CMD_MAXVOL = []byte("set Master 100%\n")
 )
+
+var (
+	SHIFT_BUTTON = rpio.Pin(BTN_SHIFT)
+)
+
+func setup_shift_button() {
+	SHIFT_BUTTON.Input()
+	SHIFT_BUTTON.PullUp()
+}
 
 func setup_mute_button() {
 	muted := false

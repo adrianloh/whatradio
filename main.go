@@ -131,6 +131,9 @@ func main() {
 	// Volume control
 	go setup_mute_button()
 
+	// Shift button
+	setup_shift_button()
+
 	// Thread that handles button presses
 	go func() {
 		for {
@@ -170,6 +173,11 @@ func main() {
 				}
 				playStation <- station
 			case <-saveFav:
+				if SHIFT_BUTTON.Read() == rpio.Low {
+					display.ShowStatus <- TRASH
+					remove_favorite_station(currentStation.Station, favorite_stations)
+					continue
+				}
 				display.ShowStatus <- ADDFAV
 				err := add_favorite_station(currentStation.Station, favorite_stations)
 				if err != nil {
@@ -253,6 +261,17 @@ func add_favorite_station(newStation Station, currentStations []Station) error {
 	}
 	currentStations = append(currentStations, newStation)
 	return saveFavoriteStations(currentStations)
+}
+
+func remove_favorite_station(removeThisStation Station, currentStations []Station) error {
+	fmt.Println("Removing station: ", removeThisStation.Name)
+	saveStations := []Station{}
+	for _, station := range currentStations {
+		if station.Name != removeThisStation.Name {
+			saveStations = append(saveStations, station)
+		}
+	}
+	return saveFavoriteStations(saveStations)
 }
 
 func isAlive(cmd *exec.Cmd) bool {
