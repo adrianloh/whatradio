@@ -1,6 +1,6 @@
 # WhatRadio
 
-An internet radio built on Raspberry Pi Zero 2 with the [Pimoroni DAC](https://shop.pimoroni.com/products/pirate-audio-line-out?variant=31189750546515).
+Welcome to WhatRadio, the coolest internet radio experience designed for Raspberry Pi Zero 2. This isn't just a radio; it's your gateway to a world of music, powered by the slick [Pimoroni DAC](https://shop.pimoroni.com/products/pirate-audio-line-out?variant=31189750546515). Transform your Raspberry Pi into a music wizard, playing tunes from across the globe, and even recognizing songs like magic!
 
 ## Base Setup
 To set up WhatRadio, 
@@ -14,9 +14,8 @@ ssh pi@raspberrypi.local mkdir /home/pi/whatradio
 rsync -avz build/ pi@raspberrypi.local:/home/pi/whatradio/
 ```
 
-
-## Song Recognition
-Identify the song currently playing (and even add it to your Spotify library!) automagically.
+## Musical Sherlock: Song Recognition
+Guess the song playing? Old school! WhatRadio identifies it instantly – and can even add it to your Spotify library. 🎶
 
 #### Setup
 1. Get an api key from [audd.io](https://audd.io)
@@ -31,19 +30,22 @@ When a song is successfully matched, a QR code will appear on the screen that lo
 3. You will be prompted with a QR code on the screen.
 4. Follow the QR to finish authentication.
 
-## Languages
-Available languages are contained in `languages.txt`. You can edit this file to set what languages you would like to hear on the radio.
+When a song is matched, it will automatically be added to your Spotify Liked
 
-## Usage
+## Speak My Language!
+Tune in to the world! Edit `languages.txt` to pick languages for your global music journey.
+
+## Controls
 
 | Button | Function |
 |----------|----------|
-|   A  |   Does nothing (for now)  |
+|   A  |   SHIFT  |
 |   B  |   Toggle mute/unmute  |
 |   X (press)  |   Play a random station  |
 |   X (hold)  |   Identify current song and add it to Spotify  |
 |   Y (press)  |   Play a station from favorites  |
 |   Y (hold)  |   Add current station to favorites  |
+|   Y (hold) + SHIFT  |   Remove station from favorites  |
 
 ### Test Platform:
 
